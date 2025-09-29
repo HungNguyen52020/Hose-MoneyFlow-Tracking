@@ -1,0 +1,24 @@
+name: Daily HOSE Monitor
+
+on:
+  schedule:
+    - cron: "0 2 * * *"   # chạy lúc 9h sáng VN mỗi ngày
+  workflow_dispatch:      # cho phép bấm chạy thủ công
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run script
+        run: python main.py
