@@ -6,39 +6,16 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import smtplib, ssl
 
-# Nếu dùng OpenAI để phân tích
-try:
-    import openai
-except ImportError:
-    openai = None
-
 # --- Cấu hình ---
 TOPN = 30
 HISTORY_FILE = "history.csv"
 REPORT_FILE = "latest_report.txt"
+DATA_SOURCE = "ssi"   # chọn "ssi" hoặc "cafef"
 
-# Email (lấy từ secret/env)
-EMAIL_USER = os.getenv("nguyenhung52020@gmail.com")
-EMAIL_PASS = os.getenv("aesv aoby rxxx aaxg")
+# Email (lấy từ secret/env) 
+EMAIL_USER = os.getenv("nguyenhung52020@gmail.com") 
+EMAIL_PASS = os.getenv("aesv aoby rxxx aaxg") 
 EMAIL_TO = os.getenv("nguyenhung52020@gmail.com")
-
-import os
-import pandas as pd
-from datetime import datetime, timedelta
-import requests
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-import smtplib, ssl
-
-# --- Cấu hình ---
-TOPN = 30
-HISTORY_FILE = "history.csv"
-REPORT_FILE = "latest_report.txt"
-
-# Email (lấy từ secret/env)
-EMAIL_USER = os.getenv("EMAIL_USER")
-EMAIL_PASS = os.getenv("EMAIL_PASS")
-EMAIL_TO = os.getenv("EMAIL_TO")
 
 # --- Lấy dữ liệu từ CafeF ---
 def fetch_from_cafef():
@@ -59,18 +36,37 @@ def fetch_from_cafef():
                 continue
             df2 = df[[ticker_col, value_col]].rename(columns={ticker_col: "Ticker", value_col: "RawValue"})
             def parse_raw(x):
-                if pd.isna(x):
-                    return 0.0
-                s = str(x)
-                s = s.replace(",", "").replace(".", "")
+                if pd.isna(x): return 0.0
+                s = str(x).replace(",", "").replace(".", "")
                 s = "".join(ch for ch in s if ch.isdigit())
                 try:
                     return float(s)
                 except:
                     return 0.0
             df2["Value"] = df2["RawValue"].apply(parse_raw)
-            return df2[["Ticker", "Value"]]
+            df2["Date"] = datetime.today().strftime("%Y-%m-%d")
+            return df2[["Date","Ticker","Value"]]
     raise RuntimeError("Không tìm được bảng GTGD từ CafeF")
+
+# --- Lấy dữ liệu từ SSI ---
+def fetch_from_ssi():
+    url = "https://iboard-query.ssi.com.vn/stock/group/VNINDEX"
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "Referer": "https://iboard.ssi.com.vn/",
+        "Origin": "https://iboard.ssi.com.vn",
+        "Accept": "application/json, text/plain, */*"
+    }
+    resp = requests.get(url, headers=headers, timeout=15)
+    resp.raise_for_status()
+    data = resp.json()["data"]
+    df = pd.DataFrame(data)
+    df2 = df.rename(columns={
+        "tradingDate": "Date",
+        "stockSymbol": "Ticker",
+        "nmTotalTradedValue": "Value"
+    })
+    return df2[["Date","Ticker","Value"]]
 
 # --- Lịch sử ---
 def update_history(df_today):
@@ -78,10 +74,7 @@ def update_history(df_today):
         hist = pd.read_csv(HISTORY_FILE)
     else:
         hist = pd.DataFrame(columns=["Date","Ticker","Value"])
-    today_str = datetime.today().strftime("%Y-%m-%d")
-    recs = [{"Date": today_str, "Ticker": r["Ticker"], "Value": r["Value"]} for _, r in df_today.iterrows()]
-    df_new = pd.DataFrame(recs)
-    hist = pd.concat([hist, df_new], ignore_index=True)
+    hist = pd.concat([hist, df_today], ignore_index=True)
     hist.to_csv(HISTORY_FILE, index=False)
     return hist
 
@@ -104,8 +97,7 @@ def make_comparison(df_top, hist):
         v7 = get_value(hist, date_7, tkr)
         v30 = get_value(hist, date_30, tkr)
         def pct(a, b):
-            if b is None or b == 0:
-                return None
+            if b is None or b == 0: return None
             return (a - b) / b * 100.0
         recs.append({
             "Ticker": tkr,
@@ -140,7 +132,11 @@ def send_email(subject, body):
 
 # --- Báo cáo ---
 def build_and_send_report():
-    df_all = fetch_from_cafef()
+    if DATA_SOURCE == "ssi":
+        df_all = fetch_from_ssi()
+    else:
+        df_all = fetch_from_cafef()
+
     df_top = df_all.sort_values("Value", ascending=False).head(TOPN)
     total_market = df_all["Value"].sum()
     top_sum = df_top["Value"].sum()
@@ -156,11 +152,8 @@ def build_and_send_report():
     summary += "\n-- Bảng so sánh --\n"
     summary += cmp_df[["Ticker","Pct_vs_Yesterday","Pct_vs_7d","Pct_vs_30d"]].to_string(index=False)
 
-    # Không dùng AI -> chỉ số liệu
-    analysis = "\n(Chỉ báo cáo số liệu, không có phân tích AI.)"
-
-    subject = f"[TỰ ĐỘNG] Báo cáo dòng tiền HOSE Top{TOPN} {datetime.today().strftime('%Y-%m-%d')}"
-    body = summary + "\n\n" + analysis
+    subject = f"[TỰ ĐỘNG] Báo cáo HOSE Top{TOPN} {datetime.today().strftime('%Y-%m-%d')}"
+    body = summary + "\n\n(Nguồn dữ liệu: %s)" % DATA_SOURCE.upper()
     send_email(subject, body)
 
     with open(REPORT_FILE, "w", encoding="utf-8") as f:
