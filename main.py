@@ -52,11 +52,15 @@ def fetch_from_cafef():
 def fetch_from_ssi():
     url = "https://iboard-query.ssi.com.vn/stock/group/VNINDEX"
     headers = {
-        "User-Agent": "Mozilla/5.0",
-        "Referer": "https://iboard.ssi.com.vn/",
-        "Origin": "https://iboard.ssi.com.vn",
-        "Accept": "application/json, text/plain, */*"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                  "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Referer": "https://iboard.ssi.com.vn/",
+    "Origin": "https://iboard.ssi.com.vn",
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Connection": "keep-alive"
     }
+
     resp = requests.get(url, headers=headers, timeout=15)
     resp.raise_for_status()
     data = resp.json()["data"]
