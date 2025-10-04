@@ -141,13 +141,13 @@ if __name__ == "__main__":
     df['DistributionRate'] = df['TradingValue'] / df.groupby('Date')['TradingValue'].transform('sum')
     df['DistributionRate'] = (df['DistributionRate'] * 100).round(1).astype(str) + '%'
 
-    df = df[df['Rank']<=15]
+    df = df[df['Rank'] <= 15]
     last_14_days = df['Date'].max() - pd.Timedelta(days=13)
     df_last_14 = df[df['Date'] >= last_14_days]
 
     # --- Vẽ biểu đồ ---
     import matplotlib.pyplot as plt
-    from matplotlib.patches import Rectangle, Patch
+    from matplotlib.patches import Rectangle
     from matplotlib.collections import PolyCollection
     import matplotlib.cm as cm
     import matplotlib.colors as mcolors
@@ -169,6 +169,9 @@ if __name__ == "__main__":
     x_gap = 2
     bar_width = 1
 
+    max_day_value = df_last_14.groupby('Date')['TradingValue'].sum().max()
+
+    # --- Vẽ từng cột (stacked bar chart) + nhãn trong bar ---
     for i, date in enumerate(dates):
         x = i * x_gap
         y = 0
@@ -177,8 +180,20 @@ if __name__ == "__main__":
             color = colors.get(row['Ticker'], '#999999')
             rect = Rectangle((x, y), bar_width, height, color=color)
             ax.add_patch(rect)
+
+            # Thêm nhãn ticker vào giữa mỗi phần bar (nằm ngang)
+            if height > max_day_value * 0.05:  # chỉ hiển thị nếu đủ lớn
+                ax.text(
+                    x + bar_width / 2,
+                    y + height / 2,
+                    row['Ticker'],
+                    ha='center', va='center',
+                    fontsize=7, color='white'
+                )
+
             y += height
 
+    # --- Vẽ dải nối ---
     for i in range(len(dates) - 1):
         left = columns[dates[i]]
         right = columns[dates[i + 1]]
@@ -203,16 +218,13 @@ if __name__ == "__main__":
                                       alpha=0.5, edgecolor="none")
                 ax.add_collection(poly)
 
-    max_day_value = df_last_14.groupby('Date')['TradingValue'].sum().max()
+    # --- Cài đặt trục ---
     ax.set_xlim(-1, len(dates) * x_gap)
     ax.set_ylim(0, max_day_value)
     ax.set_xticks([i * x_gap + bar_width / 2 for i in range(len(dates))])
     ax.set_xticklabels([date.strftime('%Y-%m-%d') for date in dates])
     ax.set_yticks([])
     ax.set_title('Biểu đồ Sankey dạng cột (Top 15 cổ phiếu theo giá trị giao dịch)')
-
-    legend_handles = [Patch(color=colors[t], label=t) for t in tickers]
-    ax.legend(handles=legend_handles, title='Mã cổ phiếu')
 
     plt.tight_layout()
 
@@ -224,4 +236,5 @@ if __name__ == "__main__":
     # --- Gửi mail kèm ảnh ---
     report = "Báo cáo Top 15 cổ phiếu theo giá trị giao dịch trong 14 ngày gần nhất."
     send_email_report(report, attachment=chart_path)
+
 
