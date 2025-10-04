@@ -58,9 +58,9 @@ def get_all_files_from_folder(folder_id):
 
 def read_excel_file(file_path):
     if file_path.endswith(".xls"):
-        return pd.read_excel(file_path, engine="xlrd", skiprows=15, usecols="B:S")
+        return pd.read_excel(file_path, engine="xlrd", skiprows=14, usecols="B:S")
     elif file_path.endswith(".xlsx"):
-        return pd.read_excel(file_path, engine="openpyxl", skiprows=15, usecols="B:S")
+        return pd.read_excel(file_path, engine="openpyxl", skiprows=14, usecols="B:S")
     else:
         raise Exception(f"Unsupported file format: {file_path}")
 
@@ -102,10 +102,104 @@ if __name__ == "__main__":
     FOLDER_ID = os.getenv("GDRIVE_FOLDER_ID")
 
     # Load toàn bộ file Excel
-    df = load_all_excels(FOLDER_ID)
+    combined_df = load_all_excels(FOLDER_ID)
 
-    # 🚧 Hùng sẽ tự viết logic tính toán ở đây
-    report = f"Tổng số dòng dữ liệu sau khi gộp: {len(df)}"
+    # --- Logic tính toán ---
+    df = combined_df[['Ngày','Mã','Unnamed: 17']]
+    df = df.rename(columns={
+        df.columns[0]: "Date",
+        df.columns[1]: "Ticker",
+        df.columns[2]: "TradingValue"
+    })
 
-    # Gửi mail
-    send_email_report(report)
+    df = df[df['Date'].notna()]
+    df = df.sort_values(by=['Date', 'TradingValue'], ascending=[False, False])
+    df['Rank'] = df.groupby('Date')['TradingValue'].rank(ascending=False, method='dense')
+    df['TradingValue'] = df['TradingValue'].astype(int)
+    df['DistributionRate'] = df['TradingValue'] / df.groupby('Date')['TradingValue'].transform('sum')
+    df['DistributionRate'] = (df['DistributionRate'] * 100).round(1).astype(str) + '%'
+
+    df = df[df['Rank']<=15]
+    last_14_days = df['Date'].max() - pd.Timedelta(days=13)
+    df_last_14 = df[df['Date'] >= last_14_days]
+
+    # --- Vẽ biểu đồ ---
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Rectangle, Patch
+    from matplotlib.collections import PolyCollection
+    import matplotlib.cm as cm
+    import matplotlib.colors as mcolors
+
+    unique_tickers = df_last_14['Ticker'].unique()
+    color_map = cm.get_cmap('tab20', len(unique_tickers))
+    colors = {ticker: mcolors.to_hex(color_map(i)) for i, ticker in enumerate(unique_tickers)}
+
+    df_sorted = df_last_14.sort_values(by=['Date', 'TradingValue'], ascending=[True, True])
+    dates = sorted(df_last_14['Date'].unique())
+    tickers = df_last_14['Ticker'].unique()
+
+    columns = {}
+    for date in dates:
+        day_data = df_sorted[df_sorted['Date'] == date].copy()
+        columns[date] = day_data.reset_index(drop=True)
+
+    fig, ax = plt.subplots(figsize=(14, 7))
+    x_gap = 2
+    bar_width = 1
+
+    for i, date in enumerate(dates):
+        x = i * x_gap
+        y = 0
+        for _, row in columns[date].iterrows():
+            height = row['TradingValue']
+            color = colors.get(row['Ticker'], '#999999')
+            rect = Rectangle((x, y), bar_width, height, color=color)
+            ax.add_patch(rect)
+            y += height
+
+    for i in range(len(dates) - 1):
+        left = columns[dates[i]]
+        right = columns[dates[i + 1]]
+        
+        left_y = left['TradingValue'].cumsum() - left['TradingValue']
+        right_y = right['TradingValue'].cumsum() - right['TradingValue']
+        
+        for ticker in tickers:
+            l_row = left[left['Ticker'] == ticker]
+            r_row = right[right['Ticker'] == ticker]
+            if not l_row.empty and not r_row.empty:
+                lx0 = i * x_gap + bar_width
+                rx0 = (i + 1) * x_gap
+                ly0 = left_y.iloc[l_row.index[0]]
+                ly1 = ly0 + l_row['TradingValue'].values[0]
+                ry0 = right_y.iloc[r_row.index[0]]
+                ry1 = ry0 + r_row['TradingValue'].values[0]
+                verts = [(lx0, ly0), (lx0, ly1),
+                         (rx0, ry1), (rx0, ry0)]
+                poly = PolyCollection([verts], 
+                                      facecolor=colors.get(ticker, '#999999'), 
+                                      alpha=0.5, edgecolor="none")
+                ax.add_collection(poly)
+
+    max_day_value = df_last_14.groupby('Date')['TradingValue'].sum().max()
+    ax.set_xlim(-1, len(dates) * x_gap)
+    ax.set_ylim(0, max_day_value)
+    ax.set_xticks([i * x_gap + bar_width / 2 for i in range(len(dates))])
+    ax.set_xticklabels([date.strftime('%Y-%m-%d') for date in dates])
+    ax.set_yticks([])
+    ax.set_title('Biểu đồ Sankey dạng cột (Top 15 cổ phiếu theo giá trị giao dịch)')
+
+    legend_handles = [Patch(color=colors[t], label=t) for t in tickers]
+    ax.legend(handles=legend_handles, title='Mã cổ phiếu')
+
+    plt.tight_layout()
+
+    # --- Save chart ra file ---
+    chart_path = "chart.png"
+    plt.savefig(chart_path, dpi=300)
+    plt.close()
+
+    # --- Gửi mail kèm ảnh ---
+    report = "Báo cáo Top 15 cổ phiếu theo giá trị giao dịch trong 14 ngày gần nhất."
+    send_email_report(report, attachment=chart_path)
+
