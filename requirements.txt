@@ -24,3 +24,11 @@ google-api-python-client
 google-auth
 google-auth-httplib2
 google-auth-oauthlib
+
+
+smtplib
+email.mime.multipart
+email.mime.text
+email.mime.base
+email 
+
