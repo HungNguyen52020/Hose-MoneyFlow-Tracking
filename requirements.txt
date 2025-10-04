@@ -3,3 +3,18 @@ lxml
 requests
 matplotlib
 numpy
+# Data processing
+pandas>=2.0.0
+openpyxl>=3.1.2   # đọc file Excel (.xlsx)
+
+# Google Drive API
+google-api-python-client>=2.100.0
+google-auth>=2.22.0
+google-auth-httplib2>=0.1.0
+google-auth-oauthlib>=1.0.0
+
+# Email
+yagmail>=0.15.293
+
+# Utilities
+python-dotenv>=1.0.0
