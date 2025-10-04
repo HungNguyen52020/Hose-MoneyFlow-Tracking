@@ -17,6 +17,23 @@ with open("credentials.json", "w") as f:
 creds = Credentials.from_service_account_file("credentials.json", scopes=SCOPES)
 drive_service = build('drive', 'v3', credentials=creds)
 
+import io
+from googleapiclient.http import MediaIoBaseDownload
+
+def download_file(file_id, filename):
+    """Tải file từ Google Drive về và lưu local"""
+    request = service.files().get_media(fileId=file_id)
+    file_path = f"./{filename}"
+    fh = io.FileIO(file_path, "wb")
+    downloader = MediaIoBaseDownload(fh, request)
+    done = False
+    while done is False:
+        status, done = downloader.next_chunk()
+        if status:
+            print(f"Downloading {filename}: {int(status.progress() * 100)}%")
+    return file_path
+
+
 # --- Hàm tải file từ Google Drive ---
 def download_file_from_gdrive(file_id, filename):
     request = drive_service.files().get_media(fileId=file_id)
@@ -54,7 +71,7 @@ def load_all_excels(folder_id):
     for f in files:
         file_id = f["id"]
         name = f["name"]
-        file_path = download_file(file_id, name)
+        file_path = download_file(file_id, name)   # << bây giờ hàm này đã có
         try:
             df = read_excel_file(file_path)
             df_list.append(df)
