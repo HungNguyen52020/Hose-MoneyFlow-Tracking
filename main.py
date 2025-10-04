@@ -39,24 +39,30 @@ def get_all_files_from_folder(folder_id):
         raise Exception("No files found in folder")
     return items  # list file
 
+def read_excel_file(file_path):
+    if file_path.endswith(".xls"):
+        return pd.read_excel(file_path, engine="xlrd", skiprows=15, usecols="B:S")
+    elif file_path.endswith(".xlsx"):
+        return pd.read_excel(file_path, engine="openpyxl", skiprows=15, usecols="B:S")
+    else:
+        raise Exception(f"Unsupported file format: {file_path}")
+
 # --- Load toàn bộ file Excel ---
 def load_all_excels(folder_id):
     files = get_all_files_from_folder(folder_id)
-    dfs = []
+    df_list = []
     for f in files:
-        file_id, file_name = f['id'], f['name']
-        download_file_from_gdrive(file_id, file_name)
-
+        file_id = f["id"]
+        name = f["name"]
+        file_path = download_file(file_id, name)
         try:
-            df = pd.read_excel(file_name, skiprows=15, usecols="B:S")
-            dfs.append(df)
-            print(f"Loaded {file_name}, shape={df.shape}")
+            df = read_excel_file(file_path)
+            df_list.append(df)
         except Exception as e:
-            print(f"⚠️ Lỗi khi đọc {file_name}: {e}")
-
-    if not dfs:
+            print(f"⚠️ Lỗi khi đọc {name}: {e}")
+    if not df_list:
         raise Exception("Không load được file Excel nào!")
-    return pd.concat(dfs, ignore_index=True)
+    return pd.concat(df_list, ignore_index=True)
 
 # --- Email ---
 def send_email_report(report_text):
