@@ -2,7 +2,7 @@ name: Daily HOSE Monitor
 
 on:
   schedule:
-    - cron: "0 2 * * *"   # chạy lúc 9h sáng VN mỗi ngày
+    - cron: "0 13 * * *"   # chạy lúc 20h sáng VN mỗi ngày
   workflow_dispatch:      # cho phép bấm chạy thủ công
 
 jobs:
@@ -21,4 +21,10 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run script
+        env:
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+          EMAIL_TO:   ${{ secrets.EMAIL_TO }}
+          GDRIVE_CREDENTIALS: ${{ secrets.GDRIVE_CREDENTIALS }}
+          GDRIVE_FOLDER_ID:   ${{ secrets.GDRIVE_FOLDER_ID }}
         run: python main.py
