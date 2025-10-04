@@ -22,7 +22,7 @@ from googleapiclient.http import MediaIoBaseDownload
 
 def download_file(file_id, filename):
     """Tải file từ Google Drive về và lưu local"""
-    request = service.files().get_media(fileId=file_id)
+    request = drive_service.files().get_media(fileId=file_id)
     file_path = f"./{filename}"
     fh = io.FileIO(file_path, "wb")
     downloader = MediaIoBaseDownload(fh, request)
