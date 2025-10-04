@@ -18,3 +18,9 @@ yagmail>=0.15.293
 
 # Utilities
 python-dotenv>=1.0.0
+openpyxl
+xlrd>=2.0.1
+google-api-python-client
+google-auth
+google-auth-httplib2
+google-auth-oauthlib
