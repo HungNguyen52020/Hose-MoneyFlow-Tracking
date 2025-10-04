@@ -82,19 +82,41 @@ def load_all_excels(folder_id):
     return pd.concat(df_list, ignore_index=True)
 
 # --- Email ---
-def send_email_report(report_text):
+import os
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
+
+def send_email_report(report_text, attachment=None):
     EMAIL_USER = os.getenv("EMAIL_USER")
     EMAIL_PASS = os.getenv("EMAIL_PASS")
     EMAIL_TO = os.getenv("EMAIL_TO")
 
-    msg = MIMEText(report_text, "plain", "utf-8")
+    # Tạo email multipart
+    msg = MIMEMultipart()
     msg['Subject'] = "Daily Report"
     msg['From'] = EMAIL_USER
     msg['To'] = EMAIL_TO
 
-    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+    # Nội dung text
+    msg.attach(MIMEText(report_text, "plain", "utf-8"))
+
+    # Nếu có file đính kèm
+    if attachment:
+        with open(attachment, "rb") as f:
+            part = MIMEBase("application", "octet-stream")
+            part.set_payload(f.read())
+        encoders.encode_base64(part)
+        part.add_header("Content-Disposition", f"attachment; filename={os.path.basename(attachment)}")
+        msg.attach(part)
+
+    # Gửi mail
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
         server.login(EMAIL_USER, EMAIL_PASS)
         server.send_message(msg)
+
     print("Email sent successfully!")
 
 # --- Main ---
