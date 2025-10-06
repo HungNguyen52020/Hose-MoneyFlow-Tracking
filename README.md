@@ -1,5 +1,6 @@
 # HOSE-MoneyFlow-Tracking
-Idea: based on daily trading on Hose, find out the trend of money flow
+## Idea: based on daily trading on Hose, find out the trend of money flow
+
 Data: API conect to google drive - Daily upload hose statistic from Vietstock by phone
 Calculating by Python on Github
 Result:
