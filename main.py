@@ -181,7 +181,7 @@ if __name__ == "__main__":
             ax.add_patch(rect)
     
             # Thêm nhãn ticker vào giữa mỗi phần bar (nằm ngang)
-            if height > max_day_value * 0.05:  # chỉ hiển thị nếu đủ lớn
+            if height > max_day_value * 0.02:  # chỉ hiển thị nếu đủ lớn
                 ax.text(
                     x + bar_width / 2,
                     y + height / 2,
