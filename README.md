@@ -1,9 +1,33 @@
-# HOSE-MoneyFlow-Tracking
-## Idea: based on daily trading on Hose, find out the trend of money flow
+# 🧭 HOSE Money Flow Tracking
 
-Data: API conect to google drive - Daily upload hose statistic from Vietstock by phone
-Calculating by Python on Github
-Result:
-- Daily sent the report about movement of investment flow
-- Begining with three chart in one page, and then explore for more info later
-- <img width="4800" height="6300" alt="Image" src="https://github.com/user-attachments/assets/27ed72f1-eeb4-471e-be4b-5ec98fedfbfc" />
+**Idea:**  
+Based on daily trading data from HOSE, this project aims to identify and visualize **money flow trends** across the market.
+
+---
+
+## 📊 Data Source
+- API connected to **Google Drive**
+- Daily upload of HOSE statistics from **Vietstock** (via mobile)
+- Processing and calculation performed using **Python on GitHub**
+
+---
+
+## ⚙️ Results
+- Automatically sends a **daily report** on investment flow movement  
+- Initially includes **three key charts** per report  
+- Will be expanded later to explore deeper insights
+
+---
+
+## 📈 Example Dashboard
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/27ed72f1-eeb4-471e-be4b-5ec98fedfbfc" width="800" alt="HOSE Money Flow Dashboard">
+</p>
+
+---
+
+## 🚀 Future Enhancements
+- Add interactive charts
+- Support long-term trend comparison
+- Improve automation and scheduling
