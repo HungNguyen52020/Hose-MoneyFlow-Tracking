@@ -2,7 +2,7 @@ name: Daily HOSE Monitor
 
 on:
   schedule:
-    - cron: "0 13 * * *"   # chạy lúc 20h sáng VN mỗi ngày
+    - cron: "0 11 * * *"   # chạy lúc 19h sáng VN mỗi ngày
   workflow_dispatch:      # cho phép bấm chạy thủ công
 
 jobs:
