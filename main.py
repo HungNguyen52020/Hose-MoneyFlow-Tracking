@@ -901,10 +901,10 @@ if __name__ == "__main__":
         y_offset += img.height
     
     # --- Lưu kết quả ---
-    merged_img.save("summary_charts.png")
+    merged_img_path = "summary_charts.png"   # ✅ định nghĩa biến trước
     merged_img.save(merged_img_path)
     print(f"✅ Ảnh tổng hợp đã được lưu: {merged_img_path}")    
-  
+    
     # --- Gửi mail kèm ảnh ---
     report = "Báo cáo Top 15 cổ phiếu theo giá trị giao dịch trong 14 ngày gần nhất."
     send_email_report(report, attachment=merged_img_path)
