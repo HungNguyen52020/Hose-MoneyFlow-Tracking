@@ -123,7 +123,7 @@ def send_email_report(report_text, attachment=None):
 if __name__ == "__main__":
     
     # --- Đường dẫn tương đối trong repo ---
-    file_pathx = "Hose-MoneyFlow-Tracking/DOANH NGHIEP TIEM NANG.xlsx"
+    file_pathx = r"DOANH NGHIEP TIEM NANG.xlsx"
     
     # --- Đọc sheet 'Tổng quan' ---
     df = pd.read_excel(file_pathx, sheet_name='Tổng quan')
