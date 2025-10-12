@@ -20,7 +20,9 @@ Based on daily trading data from HOSE, this project aims to identify and visuali
 ---
 
 ## 📈 Example Dashboard
-
+<p align="center">
+  <img src="20251012-182359.jpg" width="800" alt="HOSE Money Flow Dashboard">
+</p>
 <p align="center">
   <img src="summary_charts.png" width="800" alt="HOSE Money Flow Dashboard">
 </p>
