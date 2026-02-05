@@ -1116,8 +1116,8 @@ def plot_price_status_stacked_14d(
     # =========================
     # 3. Ceiling / Floor ±7%
     # =========================
-    data['Ceiling'] = data[base_col] * 1.07
-    data['Floor']   = data[base_col] * 0.93
+    data['Ceiling'] = data[base_col] * 1.068
+    data['Floor']   = data[base_col] * 0.922
 
     # =========================
     # 4. Price classification
