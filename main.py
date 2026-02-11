@@ -47,15 +47,29 @@ def download_file_from_gdrive(file_id, filename):
 
 # --- Lấy toàn bộ file trong folder ---
 def get_all_files_from_folder(folder_id):
-    results = drive_service.files().list(
-        q=f"'{folder_id}' in parents and trashed=false",
-        orderBy="createdTime",
-        fields="files(id, name, createdTime)"
-    ).execute()
-    items = results.get('files', [])
-    if not items:
+    all_files = []
+    page_token = None
+
+    while True:
+        results = drive_service.files().list(
+            q=f"'{folder_id}' in parents and trashed=false",
+            orderBy="createdTime",
+            fields="nextPageToken, files(id, name, createdTime)",
+            pageToken=page_token,
+            pageSize=1000   # lấy nhiều file hơn mỗi lần
+        ).execute()
+
+        items = results.get('files', [])
+        all_files.extend(items)
+
+        page_token = results.get('nextPageToken')
+        if not page_token:
+            break
+
+    if not all_files:
         raise Exception("No files found in folder")
-    return items  # list file
+
+    return all_files
 
 def read_excel_file(file_path):
     if file_path.endswith(".xls"):
