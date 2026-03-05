@@ -96,6 +96,74 @@ def load_all_excels(folder_id):
         raise Exception("Không load được file Excel nào!")
     return pd.concat(df_list, ignore_index=True)
 
+def load_industry_dimension_from_gdrive(file_id="1-Mj8BX3pPwpnYnlPneyLyrbP6VGHBibM"):
+    """
+    Load industry dimension table from Google Drive Excel
+    Returns dataframe with columns: Ticker, Major
+    """
+
+    import io
+    import pandas as pd
+    from googleapiclient.http import MediaIoBaseDownload
+
+    request = drive_service.files().get_media(fileId=file_id)
+
+    file_buffer = io.BytesIO()
+    downloader = MediaIoBaseDownload(file_buffer, request)
+
+    done = False
+    while not done:
+        status, done = downloader.next_chunk()
+
+    file_buffer.seek(0)
+
+    df = pd.read_excel(file_buffer, sheet_name="Tổng quan")
+
+    dfIndustryDim = (
+        df[['Mã', 'Ngành']]
+        .rename(columns={
+            'Mã': 'Ticker',
+            'Ngành': 'Major'
+        })
+        .dropna(subset=['Ticker'])
+        .reset_index(drop=True)
+    )
+
+    return dfIndustryDim
+
+
+def load_tracking_from_gdrive(file_id="1-Mj8BX3pPwpnYnlPneyLyrbP6VGHBibM"):
+    """
+    Load tracking ticker list from Google Drive Excel
+    Returns dataframe: dfProtentialTrack
+    """
+
+    import io
+    import pandas as pd
+    from googleapiclient.http import MediaIoBaseDownload
+
+    request = drive_service.files().get_media(fileId=file_id)
+
+    file_buffer = io.BytesIO()
+    downloader = MediaIoBaseDownload(file_buffer, request)
+
+    done = False
+    while not done:
+        status, done = downloader.next_chunk()
+
+    file_buffer.seek(0)
+
+    # --- đọc sheet Tracking ---
+    df = pd.read_excel(file_buffer, sheet_name="Tracking")
+
+    dfProtentialTrack = (
+        df[['No.', 'Ticker']]
+        .dropna(subset=['Ticker'])
+        .reset_index(drop=True)
+    )
+
+    return dfProtentialTrack
+
 # --- Email ---
 import os
 import smtplib
@@ -1131,7 +1199,7 @@ def plot_price_status_stacked_14d(
     # 3. Ceiling / Floor ±7%
     # =========================
     data['Ceiling'] = data[base_col] * 1.068
-    data['Floor']   = data[base_col] * 0.922
+    data['Floor']   = data[base_col] * 0.932
 
     # =========================
     # 4. Price classification
@@ -1263,25 +1331,166 @@ def plot_price_status_stacked_14d(
     else:
         plt.show()
 
+def generate_candlestick_dashboard(combined_df, dfProtentialTrack, output_path="chart_candlestick_3m.png"):
 
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Rectangle
+    from PIL import Image
+    import math
+    import os
+
+    # =============================
+    # 1️⃣ CHUẨN HÓA DATA
+    # =============================
+    df = combined_df.iloc[:,1:13]
+
+    df = df.rename(columns={
+        "Ngày": "Date",
+        "Mã": "Ticker",
+        "Tham\n chiếu": "Base",
+        "Mở \ncửa": "Open",
+        "Đóng\n cửa": "Close",
+        "Cao\nnhất": "High",
+        "Thấp\n nhất": "Low",
+        "Unnamed: 13": "Vol"
+    })
+
+    df = df.merge(dfProtentialTrack, how="left", on="Ticker")
+    df = df[df["No."].notna()]
+
+    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    df = df.dropna(subset=["Date"])
+
+    # =============================
+    # 2️⃣ LỌC 3 THÁNG
+    # =============================
+    max_date = df["Date"].max()
+    start_date = max_date - pd.DateOffset(months=3)
+
+    df_3m = df[df["Date"] >= start_date].copy()
+    tickers = df_3m["Ticker"].dropna().unique()
+
+    if len(df_3m) == 0:
+        print("❌ No data available")
+        return None
+
+    global_max_vol = df_3m["Vol"].max()
+
+    # =============================
+    # 3️⃣ FUNCTION VẼ CHART
+    # =============================
+    def plot_candlestick(data, ticker, save_path):
+
+        data = data.sort_values("Date").reset_index(drop=True)
+        data["MA10"] = data["Close"].rolling(10).mean()
+
+        fig = plt.figure(figsize=(6,6))
+
+        ax_price = plt.axes([0.1, 0.35, 0.85, 0.6])
+        ax_vol = plt.axes([0.1, 0.1, 0.85, 0.2])
+
+        for i in range(len(data)):
+
+            open_price = data.loc[i, "Open"]
+            close_price = data.loc[i, "Close"]
+            high_price = data.loc[i, "High"]
+            low_price = data.loc[i, "Low"]
+            volume = data.loc[i, "Vol"]
+
+            color = "green" if close_price >= open_price else "red"
+
+            ax_price.plot([i, i], [low_price, high_price], color=color)
+
+            lower = min(open_price, close_price)
+            height = abs(close_price - open_price) or 0.01
+
+            rect = Rectangle(
+                (i - 0.3, lower),
+                0.6,
+                height,
+                facecolor=color,
+                edgecolor=color
+            )
+            ax_price.add_patch(rect)
+
+            ax_vol.bar(i, volume, color="gray", width=0.6)
+
+        ax_price.plot(data["MA10"], linewidth=1)
+
+        ax_vol.set_ylim(0, global_max_vol)
+
+        ax_price.set_title(f"{ticker} - 3M")
+        ax_price.set_xticks([])
+        ax_vol.set_xticks([])
+
+        plt.savefig(save_path)
+        plt.close()
+
+    # =============================
+    # 4️⃣ VẼ TỪNG MÃ
+    # =============================
+    temp_images = []
+
+    for ticker in tickers:
+
+        data_ticker = df_3m[df_3m["Ticker"] == ticker]
+
+        if len(data_ticker) < 5:
+            continue
+
+        img_path = f"temp_{ticker}.png"
+        plot_candlestick(data_ticker, ticker, img_path)
+        temp_images.append(img_path)
+
+    if len(temp_images) == 0:
+        print("❌ No charts generated.")
+        return None
+
+    # =============================
+    # 5️⃣ GHÉP GRID
+    # =============================
+    images = [Image.open(img) for img in temp_images]
+
+    img_width, img_height = images[0].size
+
+    cols = 3
+    rows = math.ceil(len(images) / cols)
+
+    final_width = cols * img_width
+    final_height = rows * img_height
+
+    final_image = Image.new("RGB", (final_width, final_height), (255,255,255))
+
+    for index, img in enumerate(images):
+
+        row = index // cols
+        col = index % cols
+
+        x = col * img_width
+        y = row * img_height
+
+        final_image.paste(img, (x,y))
+
+    final_image.save(output_path)
+
+    # =============================
+    # 6️⃣ XÓA FILE TẠM
+    # =============================
+    for img in temp_images:
+        os.remove(img)
+
+    print("✅ Candlestick dashboard saved:", output_path)
+
+    return output_path
 
 
 
 # --- Main ---
 if __name__ == "__main__":
     
-    # --- Đường dẫn tương đối trong repo ---
-    file_pathx = r"DOANH NGHIEP TIEM NANG.xlsx"
-    
-    # --- Đọc sheet 'Tổng quan' ---
-    df = pd.read_excel(file_pathx, sheet_name='Tổng quan')
-    
-    # --- Lọc cột và đổi tên ---
-    df = df[['Mã','Ngành']]
-    df.columns = ["Ticker","Major"]
-    
-    # --- Lưu vào biến dfIndustryDim ---
-    dfIndustryDim = df
+    dfIndustryDim = load_industry_dimension_from_gdrive()
+    dfProtentialTrack = load_tracking_from_gdrive()
     
     FOLDER_ID = os.getenv("GDRIVE_FOLDER_ID")
 
@@ -1298,6 +1507,7 @@ if __name__ == "__main__":
     dfSharebyIndustyDaily = build_dfSharebyIndustyDaily(combined_df, dfIndustryDim)
     build_profit_area_table(dfSharebyIndustyDaily)#"chart6.png"
     plot_price_status_stacked_14d(  combined_df) #"chart3.0.png"
+    chart_candle = generate_candlestick_dashboard(combined_df, dfProtentialTrack)
 
 
     from PIL import Image
