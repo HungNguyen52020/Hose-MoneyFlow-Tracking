@@ -172,7 +172,7 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
 
-def send_email_report(report_text, attachment=None):
+def send_email_report(report_text, attachments=None):
     EMAIL_USER = os.getenv("EMAIL_USER")
     EMAIL_PASS = os.getenv("EMAIL_PASS")
     EMAIL_TO = os.getenv("EMAIL_TO")
@@ -187,13 +187,19 @@ def send_email_report(report_text, attachment=None):
     msg.attach(MIMEText(report_text, "plain", "utf-8"))
 
     # Nếu có file đính kèm
-    if attachment:
-        with open(attachment, "rb") as f:
-            part = MIMEBase("application", "octet-stream")
-            part.set_payload(f.read())
-        encoders.encode_base64(part)
-        part.add_header("Content-Disposition", f"attachment; filename={os.path.basename(attachment)}")
-        msg.attach(part)
+    if attachments:
+        for attachment in attachments:
+            with open(attachment, "rb") as f:
+                part = MIMEBase("application", "octet-stream")
+                part.set_payload(f.read())
+
+            encoders.encode_base64(part)
+            part.add_header(
+                "Content-Disposition",
+                f"attachment; filename={os.path.basename(attachment)}"
+            )
+
+            msg.attach(part)
 
     # Gửi mail
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
@@ -1540,9 +1546,12 @@ if __name__ == "__main__":
     merged_img.save(merged_img_path)
     print(f"✅ Ảnh tổng hợp đã được lưu: {merged_img_path}")    
     
-    # --- Gửi mail kèm ảnh ---
-    report = "Báo cáo Top 15 cổ phiếu theo giá trị giao dịch trong 14 ngày gần nhất."
-    send_email_report(report, attachment=merged_img_path)
+    # --- Ảnh candlestick dashboard ---
+    candlestick_path = "candlestick_dashboard_3m.png"
+    
+    # --- Gửi mail kèm 2 ảnh ---
+    report = "Money flow report"
+    send_email_report(report, attachments=[merged_img_path, candlestick_path])
 
 
 
