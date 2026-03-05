@@ -79,21 +79,33 @@ def read_excel_file(file_path):
     else:
         raise Exception(f"Unsupported file format: {file_path}")
 
+
 # --- Load toàn bộ file Excel ---
 def load_all_excels(folder_id):
     files = get_all_files_from_folder(folder_id)
     df_list = []
+
     for f in files:
         file_id = f["id"]
         name = f["name"]
-        file_path = download_file(file_id, name)   # << bây giờ hàm này đã có
+
+        # 🔒 Chỉ đọc file dữ liệu giao dịch
+        if "ThongKeGia" not in name:
+            print(f"⏭️ Skip file: {name}")
+            continue
+
+        file_path = download_file(file_id, name)
+
         try:
             df = read_excel_file(file_path)
             df_list.append(df)
+            print(f"✅ Loaded: {name}")
         except Exception as e:
             print(f"⚠️ Lỗi khi đọc {name}: {e}")
+
     if not df_list:
         raise Exception("Không load được file Excel nào!")
+
     return pd.concat(df_list, ignore_index=True)
 
 def load_industry_dimension_from_gdrive(file_id="1-Mj8BX3pPwpnYnlPneyLyrbP6VGHBibM"):
@@ -1547,7 +1559,7 @@ if __name__ == "__main__":
     print(f"✅ Ảnh tổng hợp đã được lưu: {merged_img_path}")    
     
     # --- Ảnh candlestick dashboard ---
-    candlestick_path = "candlestick_dashboard_3m.png"
+    candlestick_path = "chart_candlestick_3m.png"
     
     # --- Gửi mail kèm 2 ảnh ---
     report = "Money flow report"
